@@ -27,6 +27,8 @@ Try different sound card and API configurations. Wait 5 to 10 seconds after lauc
 Changing mode might refresh the stream when it crashed.
 If server is defenitly down, restart EDMC.
 
+The server uses port 5005, check that this is free of usage.
+
 Disclaimer
 --------
 This software is provided as is, you might use it at your own risk.

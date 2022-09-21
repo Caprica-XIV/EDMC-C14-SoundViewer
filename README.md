@@ -14,6 +14,7 @@ In some cases, your computer is not able to manage a sound card with output-to-i
 
 Installation
 ---
+Download from [latest release](https://github.com/Caprica-XIV/EDMC-C14-SoundViewer/releases/tag/0.1.0).
 Extract zip files into the EDMC plugin folder.
 
 Usage

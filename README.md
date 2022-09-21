@@ -3,7 +3,7 @@ EDMC plugin to display sound wave and spectrogram into EDMC window.
 
 Requirements and functionnalities
 ---
-This plugin works with a server executable compiled for Windows 64bits only.
+This plugin works with a server executable (included) compiled for Windows 64bits only.
 For linux releases, you will need to compile a linux version of the [webservice](https://github.com/Caprica-XIV/C14-webservice).
 
 The software records EVERY sound emited from the device of your choosing and display the according wave form into the frame of EDMC. If you want to check this new thargoid probe sound you just acquire, you might want to stop any music, speech and other sounds that will change your reading.

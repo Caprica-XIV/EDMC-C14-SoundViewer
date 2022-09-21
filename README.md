@@ -23,7 +23,7 @@ Press one of the three button below the view canvas to change the visualisation 
 
 Troubleshoot
 ---
-Try different sound card and API configurations. Wait 5 to 10 seconds after lauching a stream for signal acquisition, it is needed for chaching data and responsiveness (is that a real word?).
+Try different sound card and API configurations. Wait 5 to 10 seconds after lauching a stream for signal acquisition, it is needed for caching data and responsiveness (is that a real word?).
 Changing mode might refresh the stream when it crashed.
 If server is defenitly down, restart EDMC.
 

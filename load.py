@@ -7,7 +7,7 @@ from time import sleep
 import tkinter as tk
 from tkinter import ttk
 import requests
-from typing import Optional
+from typing import Any, Mapping, MutableMapping, Optional
 from config import config, appname
 from theme import theme
 from threading import Thread
@@ -38,7 +38,9 @@ class CThis:
         self.coort_array = []
         self.signal_rate = 44100
         self.lbl: Optional[tk.Label]
+        self.lbl_signal: Optional[tk.Label]
         self.frame: Optional[tk.Frame]
+        self.frame_signal: Optional[tk.Frame]
         self.canvas: Optional[tk.Canvas]
         self.combo: Optional[ttk.Combobox]
         self.btStart: Optional[tk.Button]
@@ -55,6 +57,16 @@ class CThis:
         self.devices = [] # [(name, id, sample_rate)]
         self.mode = 1
         self.last_divide = 0
+        self.map_ids = []
+        self.map_belt_ids = []
+        self.mapped = list((0,0))
+        self.map_bodies = list((0,0))
+        self.map_geo = 0
+        self.map_bio = 0
+        self.map_rings = 0
+        self.map_signals = 0
+        self.map_others = list((0,0))
+        
         
 this = CThis()
 pouet = this
@@ -185,7 +197,6 @@ def start_command():
 def set_mode(mode):
     """
     Définit le mode d'affichage
-
     Args:
         mode (int): 1, 2 ou 3
     """
@@ -252,12 +263,19 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
     btFrame.columnconfigure(0, weight=1)
     btFrame.columnconfigure(1, weight=1)
     btFrame.columnconfigure(2, weight=1)
+    btFrame.columnconfigure(3, weight=1)
+    
+    this.lbl_signal = tk.Label(btFrame, text="Signals: ?")
+    this.lbl_signal.grid(row=0, sticky=tk.W, column=0, padx=10)
     this.btRealtime = tk.Button(btFrame, text="realtime", command=set_mode_realtime, padx=4, state=tk.DISABLED)
-    this.btRealtime.grid(row=0, sticky=tk.E, column=0)
+    this.btRealtime.grid(row=0, sticky=tk.E, column=1)
     this.btCoort = tk.Button(btFrame, text="cohort", command=set_mode_cohort, padx=4, state=tk.DISABLED)
-    this.btCoort.grid(row=0, sticky=tk.E, column=1, padx=5)
+    this.btCoort.grid(row=0, sticky=tk.E, column=2, padx=5)
     this.btSpectrum = tk.Button(btFrame, text="spectrogram", command=set_mode_spectrum, padx=4, state=tk.DISABLED)
-    this.btSpectrum.grid(row=0, sticky=tk.E, column=2)
+    this.btSpectrum.grid(row=0, sticky=tk.E, column=3)
+    
+    this.frame_signal = tk.Frame(this.frame, border=None)
+    this.frame_signal.grid(row=4,sticky=tk.SW, columnspan=2, column=0)
     
     theme.update(this.frame)
     # this.frame.pack(side='top', fill="x", expand=False)
@@ -503,3 +521,99 @@ def worker() -> None:
     
     """ closure """
     # logger.debug('End of Thread C14')
+
+def update_signals_frame():
+    this.frame_signal.pack_forget()
+    this.lbl_signal.config(text="Signals: "+str(this.mapped[0])+"/"+str(this.mapped[1]))
+    
+    if this.map_bodies[1] > 0:
+        lbl = tk.Label(this.frame_signal, text="Bodies: "+str(this.map_bodies[0])+"/"+str(this.map_bodies[1]))
+        lbl.grid(row=0, column=0, sticky=tk.W)        
+    if this.map_others[1] > 0:
+        lbl = tk.Label(this.frame_signal, text="Others: "+str(this.map_others[0])+"/"+str(this.map_others[1]))
+        lbl.grid(row=0, column=1, sticky=tk.W, padx=4)
+
+    if this.map_geo > 0:
+        lbl = tk.Label(this.frame_signal, text="Geological: "+str(this.map_geo))
+        lbl.grid(row=1, column=0, sticky=tk.W)
+    if this.map_bio > 0:
+        lbl = tk.Label(this.frame_signal, text="Biological: "+str(this.map_bio))
+        lbl.grid(row=1, column=1, sticky=tk.W, padx=4)
+        
+    if this.map_rings > 0:
+        lbl = tk.Label(this.frame_signal, text="Rings: "+str(this.map_rings))
+        lbl.grid(row=2, column=0, sticky=tk.W)
+    if this.map_signals > 0:
+        lbl = tk.Label(this.frame_signal, text="Signals: "+str(this.map_signals))
+        lbl.grid(row=2, column=1, sticky=tk.W)
+        
+    theme.update(this.frame_signal)
+    """ TODO """
+
+def journal_entry(
+    cmdr: str, is_beta: bool, system: str, station: str, entry: MutableMapping[str, Any], state: Mapping[str, Any]
+) -> None:
+    if entry['event'] == 'FSDJump':
+        # We arrived at a new system!
+        this.lbl_signal.config(text="Signals: ?")
+        this.map_ids = []
+        this.map_belt_ids = []
+        this.mapped = list((0,0))
+        this.map_bodies = list((0,0))
+        this.map_others = list((0,0))
+        this.map_geo = 0
+        this.map_bio = 0
+        this.map_rings = 0
+        this.map_signals = 0
+        update_signals_frame()
+        
+    if entry['event'] == 'FSSDiscoveryScan':
+        # maj du nombre de scan attendu
+        this.map_bodies[1] = int(entry['BodyCount'])
+        this.map_others[1] = int(entry['NonBodyCount'])
+        this.mapped[1] = this.map_bodies[1] + this.map_others[1]
+        this.mapped[0] += int(entry['Progress'] * this.map_bodies[1])
+        this.map_bodies[0] = int(entry['Progress'] * this.map_bodies[1])
+        this.lbl_signal.config(text="Signals: "+str(this.mapped[0])+"/"+str(this.mapped[1]))
+        update_signals_frame()
+        
+    if entry['event'] == 'Scan':
+        bId = entry['BodyID']
+        update = False
+        if "Belt" in entry['BodyName']:
+            if bId not in this.map_belt_ids:
+                # Ceinture d'astéroid non mappé
+                this.map_belt_ids.append(bId) 
+                this.map_others[0] += 1
+                this.mapped[0] += 1
+                update = True
+        elif bId not in this.map_ids:
+            # body non mappé
+            this.map_ids.append(bId)
+            this.map_bodies[0] += 1
+            this.mapped[0] += 1
+            update = True
+            
+        if 'Rings' in entry:
+            # on a découvert des signaux d'anneaux de type other donc
+            this.map_others[1] -= len(entry['Rings'])
+            this.map_rings += len(entry['Rings'])
+            update = True
+        
+        if update:
+            update_signals_frame()
+            
+    if entry['event'] == 'FSSBodySignals':
+        if 'Signals' in entry:
+            for sgnl in entry['Signals']:
+                # on détermine le type et le count
+                if 'Geological' in sgnl['Type']:
+                    this.map_geo += sgnl['Count']
+                    this.map_others[1] -= sgnl['Count']
+                    this.mapped[0] += sgnl['Count']
+                    update_signals_frame()
+                if 'Biological' in sgnl['Type']:
+                    this.map_bio += sgnl['Count']
+                    this.map_others[1] -= sgnl['Count']
+                    this.mapped[0] += sgnl['Count']
+                    update_signals_frame()

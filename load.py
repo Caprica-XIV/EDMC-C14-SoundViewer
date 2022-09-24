@@ -64,8 +64,11 @@ class CThis:
         self.map_geo = 0
         self.map_bio = 0
         self.map_rings = 0
+        self.map_belts = 0
         self.map_signals = 0
+        self.map_UIA = 3
         self.map_others = list((0,0))
+        self.map_new_scan = False
         
         
 this = CThis()
@@ -522,34 +525,55 @@ def worker() -> None:
     """ closure """
     # logger.debug('End of Thread C14')
 
-def update_signals_frame():
-    this.frame_signal.pack_forget()
-    this.lbl_signal.config(text="Signals: "+str(this.mapped[0])+"/"+str(this.mapped[1]))
     
+def update_signals_frame():
+    """ maj des signaux affichés """
+    this.lbl_signal.config(text="Total: "+str(this.mapped[0])+"/"+str(this.mapped[1]))
+
+    this.frame_signal.destroy()
+    this.frame_signal = tk.Frame(this.frame, border=None)
+    this.frame_signal.grid(row=4,sticky=tk.SW, columnspan=2, column=0)
+
+    col = 0
+
     if this.map_bodies[1] > 0:
         lbl = tk.Label(this.frame_signal, text="Bodies: "+str(this.map_bodies[0])+"/"+str(this.map_bodies[1]))
-        lbl.grid(row=0, column=0, sticky=tk.W)        
+        lbl.grid(row=0, column=col, sticky=tk.W)        
+        col+=1
     if this.map_others[1] > 0:
         lbl = tk.Label(this.frame_signal, text="Others: "+str(this.map_others[0])+"/"+str(this.map_others[1]))
-        lbl.grid(row=0, column=1, sticky=tk.W, padx=4)
+        lbl.grid(row=0, column=col, sticky=tk.W, padx=4)
+        col+=1
+    if this.map_UIA > 0:
+        lbl = tk.Label(this.frame_signal, text="UIA: "+str(this.map_UIA))
+        lbl.grid(row=0, column=col, sticky=tk.W, padx=4)
+        col+=1
+    if this.map_belts > 0:
+        lbl = tk.Label(this.frame_signal, text="Asteroids: "+str(this.map_belts))
+        lbl.grid(row=0, column=col, sticky=tk.W, padx=4)
 
+    col=0
     if this.map_geo > 0:
         lbl = tk.Label(this.frame_signal, text="Geological: "+str(this.map_geo))
-        lbl.grid(row=1, column=0, sticky=tk.W)
+        lbl.grid(row=1, column=col, sticky=tk.W)
+        col+=1
     if this.map_bio > 0:
         lbl = tk.Label(this.frame_signal, text="Biological: "+str(this.map_bio))
-        lbl.grid(row=1, column=1, sticky=tk.W, padx=4)
-        
+        lbl.grid(row=1, column=col, sticky=tk.W, padx=4)
+        col+=1
     if this.map_rings > 0:
         lbl = tk.Label(this.frame_signal, text="Rings: "+str(this.map_rings))
-        lbl.grid(row=2, column=0, sticky=tk.W)
+        lbl.grid(row=1, column=col, sticky=tk.W)
+        
+    col=0
     if this.map_signals > 0:
         lbl = tk.Label(this.frame_signal, text="Signals: "+str(this.map_signals))
-        lbl.grid(row=2, column=1, sticky=tk.W)
+        lbl.grid(row=0, column=col, sticky=tk.W, padx=4)
+        col+=1
         
     theme.update(this.frame_signal)
-    """ TODO """
 
+    
 def journal_entry(
     cmdr: str, is_beta: bool, system: str, station: str, entry: MutableMapping[str, Any], state: Mapping[str, Any]
 ) -> None:
@@ -558,32 +582,42 @@ def journal_entry(
         this.lbl_signal.config(text="Signals: ?")
         this.map_ids = []
         this.map_belt_ids = []
-        this.mapped = list((0,0))
-        this.map_bodies = list((0,0))
-        this.map_others = list((0,0))
+        this.mapped[0] = 0
+        this.mapped[1] = 0
+        this.map_bodies[0] = 0
+        this.map_bodies[1] = 0
+        this.map_others[0] = 0
+        this.map_others[1] = 0
         this.map_geo = 0
         this.map_bio = 0
         this.map_rings = 0
+        this.map_belts = 0
         this.map_signals = 0
+        this.map_UIA = 3
+        this.map_new_scan = False
         update_signals_frame()
         
     if entry['event'] == 'FSSDiscoveryScan':
         # maj du nombre de scan attendu
         this.map_bodies[1] = int(entry['BodyCount'])
         this.map_others[1] = int(entry['NonBodyCount'])
+        this.map_others[0] += this.map_UIA
         this.mapped[1] = this.map_bodies[1] + this.map_others[1]
-        this.mapped[0] += int(entry['Progress'] * this.map_bodies[1])
-        this.map_bodies[0] = int(entry['Progress'] * this.map_bodies[1])
-        this.lbl_signal.config(text="Signals: "+str(this.mapped[0])+"/"+str(this.mapped[1]))
+        this.mapped[0] += this.map_UIA
+        if not this.map_new_scan:
+            this.mapped[0] += int(entry['Progress'] * this.map_bodies[1])
+            this.map_bodies[0] = int(entry['Progress'] * this.map_bodies[1])
         update_signals_frame()
         
     if entry['event'] == 'Scan':
+        this.map_new_scan = True
         bId = entry['BodyID']
         update = False
-        if "Belt" in entry['BodyName']:
+        if 'Belt' in entry['BodyName']:
             if bId not in this.map_belt_ids:
                 # Ceinture d'astéroid non mappé
                 this.map_belt_ids.append(bId) 
+                this.map_belts += 1
                 this.map_others[0] += 1
                 this.mapped[0] += 1
                 update = True
@@ -595,9 +629,13 @@ def journal_entry(
             update = True
             
         if 'Rings' in entry:
-            # on a découvert des signaux d'anneaux de type other donc
-            this.map_others[1] -= len(entry['Rings'])
-            this.map_rings += len(entry['Rings'])
+            # on a découvert des signaux d'anneaux de type other si belt
+            for ring in entry['Rings']:
+                if 'Belt' not in ring['Name']:
+                    this.map_rings += 1
+                    # this.mapped[0] += 1
+                    # this.map_others[0] += 1
+                
             update = True
         
         if update:
@@ -609,11 +647,29 @@ def journal_entry(
                 # on détermine le type et le count
                 if 'Geological' in sgnl['Type']:
                     this.map_geo += sgnl['Count']
-                    this.map_others[1] -= sgnl['Count']
-                    this.mapped[0] += sgnl['Count']
+                    # this.map_others[1] -= sgnl['Count']
+                    # this.mapped[0] += sgnl['Count']
                     update_signals_frame()
                 if 'Biological' in sgnl['Type']:
                     this.map_bio += sgnl['Count']
-                    this.map_others[1] -= sgnl['Count']
-                    this.mapped[0] += sgnl['Count']
+                    # this.map_others[1] -= sgnl['Count']
+                    # this.mapped[0] += sgnl['Count']
                     update_signals_frame()
+                    
+    if entry['event'] == 'SAASignalsFound':
+        update = False
+        if 'Signals' in entry:
+            for sgnl in entry['Signals']:
+                this.map_signals += sgnl['Count']
+                update = True
+                # on détermine le type et le count
+                # if 'Guardian' in sgnl['Type']:
+                #     this.map_signals += sgnl['Count']
+                #     update_signals_frame()
+                # if 'Thargoid' in sgnl['Type']:
+                #     this.map_signals += sgnl['Count']
+                #     update_signals_frame()
+                
+        if update:
+            update_signals_frame()
+        

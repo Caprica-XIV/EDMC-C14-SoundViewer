@@ -568,7 +568,7 @@ def update_signals_frame():
     col=0
     if this.map_signals > 0:
         lbl = tk.Label(this.frame_signal, text="Signals: "+str(this.map_signals))
-        lbl.grid(row=0, column=col, sticky=tk.W, padx=4)
+        lbl.grid(row=2, column=col, sticky=tk.W, padx=4)
         col+=1
         
     theme.update(this.frame_signal)

@@ -66,7 +66,7 @@ class CThis:
         self.map_rings = 0
         self.map_belts = 0
         self.map_signals = 0
-        self.map_UIA = 3
+        self.map_UIA = 8
         self.map_others = list((0,0))
         self.map_new_scan = False
         
@@ -374,52 +374,60 @@ def display_coort(signal, coef, bias):
     
 def max_list(list):
     """
-    Calcul la valeur médiane d'une liste
+    Calcul la valeur maximale d'une liste
     """
     if not list or len(list) < 1:
         return 0
 
     return max(list)
 
-
 def display_mel_spectrum(signal):
     """
     Affichage du spectrogramme en échelle MEL
     """
-       # logger.debug("display_spectrum")
+    # logger.debug("display_spectrum")
     # reset
     if this.last_divide >= this.width:
         this.last_divide = 0
         this.canvas.delete("all")
-
-    # on a un certain nombre de dB (128) x 87 samples pour 1 seconde d'échantillonnage serveur
-    # il faudrait afficher 10 secondes pour avoir les signaux thargo de 7s
-    nbseconde = 6
-    # signal[[color value in time]]
-    divide = this.width / (nbseconde * len(signal[0]))
-    # nbSample contient le nombre de Sxx à prendre en compte pour dessiner 1pxl
-    nbSample = math.ceil(1 / divide)
     x = this.last_divide
     y_prev = this.height
     B = this.height
     A = -this.height / len(signal)
+    # pixel skip : we're not displaying the full spectrum over time in order to have a better overview.
+    # at the current sample rate of 48000, to display 7 sec of recording in 300 pixels, you have to skip
+    # 1 / 2 values.
+    skip = 1
     for i in range(0, len(signal) -1):
         try:
+            colours = signal[i]
+            # this really bothers me.
+            if isinstance(colours, int):
+                # get out! son of a...
+                continue
+            
             yB = y_prev
             yH = (i+1)*A +B
             y_prev = yH
             w = 0
-            colours = signal[i]
-            for j in range(0, len(colours), nbSample):
+            cn = 0
+            for col in colours:
+                # skipping values to shorten the render
+                if cn < skip:
+                    cn +=1
+                    continue
+                cn = 0
                 try:
-                    med = max_list(colours[j : j+nbSample])
                     x = int(this.last_divide + w)
+                    if x > this.width:
+                        break
+                    
                     w += 1
-                    # dessin d'une ligne puisqu'on a qu'un seul pixl en X à chaque fois!
+                    # dessin d'une ligne verticale
                     this.canvas.create_line(
                         x, yB,
                         x, yH,
-                        fill=get_spectrum_color(med)
+                        fill=get_spectrum_color(col)
                     )
                 except Exception as e:
                     logger.debug("Erreur de calcul X", exc_info=e)
@@ -427,7 +435,6 @@ def display_mel_spectrum(signal):
             logger.debug(f'Erreur de calcul Y: {i} > {len(signal)} ({type(signal)})', exc_info=e2)
                             
     this.last_divide = x+1
-
 
 def get_spectrum_color(col) -> str:
     """
@@ -582,18 +589,17 @@ def journal_entry(
         this.lbl_signal.config(text="Signals: ?")
         this.map_ids = []
         this.map_belt_ids = []
-        this.mapped[0] = 0
-        this.mapped[1] = 0
+        this.mapped[0] = this.map_UIA
+        this.mapped[1] = this.map_UIA
         this.map_bodies[0] = 0
         this.map_bodies[1] = 0
-        this.map_others[0] = 0
-        this.map_others[1] = 0
+        this.map_others[0] = this.map_UIA
+        this.map_others[1] = this.map_UIA
         this.map_geo = 0
         this.map_bio = 0
         this.map_rings = 0
         this.map_belts = 0
         this.map_signals = 0
-        this.map_UIA = 3
         this.map_new_scan = False
         update_signals_frame()
         
@@ -601,9 +607,9 @@ def journal_entry(
         # maj du nombre de scan attendu
         this.map_bodies[1] = int(entry['BodyCount'])
         this.map_others[1] = int(entry['NonBodyCount'])
-        this.map_others[0] += this.map_UIA
+        # this.map_others[0] += this.map_UIA
         this.mapped[1] = this.map_bodies[1] + this.map_others[1]
-        this.mapped[0] += this.map_UIA
+        # this.mapped[0] += this.map_UIA
         if not this.map_new_scan:
             this.mapped[0] += int(entry['Progress'] * this.map_bodies[1])
             this.map_bodies[0] = int(entry['Progress'] * this.map_bodies[1])

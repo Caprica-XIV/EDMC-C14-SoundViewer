@@ -13,7 +13,8 @@ from theme import theme
 from threading import Thread
 import launcher
 
-plugin_name = os.path.basename(os.path.dirname(__file__))
+version='1.0.0'
+plugin_name = os.path.basename(os.path.dirname(__file__)) +'-'+ version
 logger = logging.getLogger(f'{appname}.{plugin_name}')
 URL = "http://127.0.0.1:5005/"
 
@@ -40,9 +41,9 @@ class CThis:
         self.lbl: Optional[tk.Label]
         self.lbl_signal: Optional[tk.Label]
         self.frame: Optional[tk.Frame]
-        self.frame_signal: Optional[tk.Frame]
         self.canvas: Optional[tk.Canvas]
         self.combo: Optional[ttk.Combobox]
+        self.btServer: Optional[tk.Button]
         self.btStart: Optional[tk.Button]
         self.btRealtime: Optional[tk.Button]
         self.btCoort: Optional[tk.Button]
@@ -57,18 +58,6 @@ class CThis:
         self.devices = [] # [(name, id, sample_rate)]
         self.mode = 1
         self.last_divide = 0
-        self.map_ids = []
-        self.map_belt_ids = []
-        self.mapped = list((0,0))
-        self.map_bodies = list((0,0))
-        self.map_geo = 0
-        self.map_bio = 0
-        self.map_rings = 0
-        self.map_belts = 0
-        self.map_signals = 0
-        self.map_UIA = 8
-        self.map_others = list((0,0))
-        self.map_new_scan = False
         
         
 this = CThis()
@@ -97,6 +86,7 @@ def get_devices_list():
             this.btCoort["state"] = tk.NORMAL
             this.btSpectrum["state"] = tk.NORMAL
             this.lbl.config(text=plugin_name + " - Choose device.")
+            theme.update(this.frame)
         else:
             logger.debug("Server comm error")
     except Exception as e:
@@ -240,16 +230,10 @@ def set_mode_cohort():
     
 def set_mode_spectrum():
     set_mode(3)
-
-def plugin_app(parent: tk.Frame) -> tk.Frame:
-    """
-    TK widgets for the EDMarketConnector main window
-    """
-    this.frame = tk.Frame(parent)
-    this.frame.columnconfigure(0, weight=7)
-    this.frame.columnconfigure(1, weight=1)
-    this.lbl = tk.Label(this.frame, text="Sound visualizer")
-    this.lbl.grid(row=0, sticky=tk.N, columnspan=2, column=0)
+    
+def start_server():
+    """ Démarre le serveur d'écoute """
+    this.btServer.destroy()
     
     this.combo = ttk.Combobox(this.frame, width=40)
     this.combo.grid(row=1, sticky=tk.W, column=0)
@@ -260,7 +244,7 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
     this.canvas = tk.Canvas(this.frame, width=this.width, height=this.height)
     this.canvas.grid(row=2,sticky=tk.W, columnspan=2, column=0)
     this.canvas.bind_all('<<C14Update>>', update_canvas)
-
+    
     btFrame = tk.Frame(this.frame)
     btFrame.grid(row=3,sticky=tk.SE, columnspan=2, column=0)
     btFrame.columnconfigure(0, weight=1)
@@ -268,8 +252,6 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
     btFrame.columnconfigure(2, weight=1)
     btFrame.columnconfigure(3, weight=1)
     
-    this.lbl_signal = tk.Label(btFrame, text="Signals: ?")
-    this.lbl_signal.grid(row=0, sticky=tk.W, column=0, padx=10)
     this.btRealtime = tk.Button(btFrame, text="realtime", command=set_mode_realtime, padx=4, state=tk.DISABLED)
     this.btRealtime.grid(row=0, sticky=tk.E, column=1)
     this.btCoort = tk.Button(btFrame, text="cohort", command=set_mode_cohort, padx=4, state=tk.DISABLED)
@@ -277,18 +259,28 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
     this.btSpectrum = tk.Button(btFrame, text="spectrogram", command=set_mode_spectrum, padx=4, state=tk.DISABLED)
     this.btSpectrum.grid(row=0, sticky=tk.E, column=3)
     
-    this.frame_signal = tk.Frame(this.frame, border=None)
-    this.frame_signal.grid(row=4,sticky=tk.SW, columnspan=2, column=0)
-    
+    theme.update(btFrame)
     theme.update(this.frame)
-    # this.frame.pack(side='top', fill="x", expand=False)
     
-    # on commence par request les devices
-    # et remplir la combo
     th = Thread(target=get_devices_list, name='C14 get_devices_list')
     th.daemon = True
     th.start()
     
+
+def plugin_app(parent: tk.Frame) -> tk.Frame:
+    """
+    TK widgets for the EDMarketConnector main window
+    """
+    this.frame = tk.Frame(parent)
+    this.frame.columnconfigure(0, weight=7)
+    this.frame.columnconfigure(1, weight=1)
+    this.lbl = tk.Label(this.frame, text="C14 Sound visualizer")
+    this.lbl.grid(row=0, sticky=tk.N, columnspan=2, column=0)
+    
+    this.btServer = tk.Button(this.frame, text="Start server", command=start_server, padx=4, pady=4)
+    this.btServer.grid(row=1, sticky=tk.E+tk.W+tk.N+tk.S)
+        
+    theme.update(this.frame)    
     return this.frame
 
 
@@ -532,150 +524,4 @@ def worker() -> None:
     """ closure """
     # logger.debug('End of Thread C14')
 
-    
-def update_signals_frame():
-    """ maj des signaux affichés """
-    this.lbl_signal.config(text="Total: "+str(this.mapped[0])+"/"+str(this.mapped[1]))
-
-    this.frame_signal.destroy()
-    this.frame_signal = tk.Frame(this.frame, border=None)
-    this.frame_signal.grid(row=4,sticky=tk.SW, columnspan=2, column=0)
-
-    col = 0
-
-    if this.map_bodies[1] > 0:
-        lbl = tk.Label(this.frame_signal, text="Bodies: "+str(this.map_bodies[0])+"/"+str(this.map_bodies[1]))
-        lbl.grid(row=0, column=col, sticky=tk.W)        
-        col+=1
-    if this.map_others[1] > 0:
-        lbl = tk.Label(this.frame_signal, text="Others: "+str(this.map_others[0])+"/"+str(this.map_others[1]))
-        lbl.grid(row=0, column=col, sticky=tk.W, padx=4)
-        col+=1
-    if this.map_UIA > 0:
-        lbl = tk.Label(this.frame_signal, text="UIA: "+str(this.map_UIA))
-        lbl.grid(row=0, column=col, sticky=tk.W, padx=4)
-        col+=1
-    if this.map_belts > 0:
-        lbl = tk.Label(this.frame_signal, text="Asteroids: "+str(this.map_belts))
-        lbl.grid(row=0, column=col, sticky=tk.W, padx=4)
-
-    col=0
-    if this.map_geo > 0:
-        lbl = tk.Label(this.frame_signal, text="Geological: "+str(this.map_geo))
-        lbl.grid(row=1, column=col, sticky=tk.W)
-        col+=1
-    if this.map_bio > 0:
-        lbl = tk.Label(this.frame_signal, text="Biological: "+str(this.map_bio))
-        lbl.grid(row=1, column=col, sticky=tk.W, padx=4)
-        col+=1
-    if this.map_rings > 0:
-        lbl = tk.Label(this.frame_signal, text="Rings: "+str(this.map_rings))
-        lbl.grid(row=1, column=col, sticky=tk.W)
-        
-    col=0
-    if this.map_signals > 0:
-        lbl = tk.Label(this.frame_signal, text="Signals: "+str(this.map_signals))
-        lbl.grid(row=2, column=col, sticky=tk.W, padx=4)
-        col+=1
-        
-    theme.update(this.frame_signal)
-
-    
-def journal_entry(
-    cmdr: str, is_beta: bool, system: str, station: str, entry: MutableMapping[str, Any], state: Mapping[str, Any]
-) -> None:
-    if entry['event'] == 'FSDJump':
-        # We arrived at a new system!
-        this.lbl_signal.config(text="Signals: ?")
-        this.map_ids = []
-        this.map_belt_ids = []
-        this.mapped[0] = this.map_UIA
-        this.mapped[1] = this.map_UIA
-        this.map_bodies[0] = 0
-        this.map_bodies[1] = 0
-        this.map_others[0] = this.map_UIA
-        this.map_others[1] = this.map_UIA
-        this.map_geo = 0
-        this.map_bio = 0
-        this.map_rings = 0
-        this.map_belts = 0
-        this.map_signals = 0
-        this.map_new_scan = False
-        update_signals_frame()
-        
-    if entry['event'] == 'FSSDiscoveryScan':
-        # maj du nombre de scan attendu
-        this.map_bodies[1] = int(entry['BodyCount'])
-        this.map_others[1] = int(entry['NonBodyCount'])
-        # this.map_others[0] += this.map_UIA
-        this.mapped[1] = this.map_bodies[1] + this.map_others[1]
-        # this.mapped[0] += this.map_UIA
-        if not this.map_new_scan:
-            this.mapped[0] += int(entry['Progress'] * this.map_bodies[1])
-            this.map_bodies[0] = int(entry['Progress'] * this.map_bodies[1])
-        update_signals_frame()
-        
-    if entry['event'] == 'Scan':
-        this.map_new_scan = True
-        bId = entry['BodyID']
-        update = False
-        if 'Belt' in entry['BodyName']:
-            if bId not in this.map_belt_ids:
-                # Ceinture d'astéroid non mappé
-                this.map_belt_ids.append(bId) 
-                this.map_belts += 1
-                this.map_others[0] += 1
-                this.mapped[0] += 1
-                update = True
-        elif bId not in this.map_ids:
-            # body non mappé
-            this.map_ids.append(bId)
-            this.map_bodies[0] += 1
-            this.mapped[0] += 1
-            update = True
-            
-        if 'Rings' in entry:
-            # on a découvert des signaux d'anneaux de type other si belt
-            for ring in entry['Rings']:
-                if 'Belt' not in ring['Name']:
-                    this.map_rings += 1
-                    # this.mapped[0] += 1
-                    # this.map_others[0] += 1
-                
-            update = True
-        
-        if update:
-            update_signals_frame()
-            
-    if entry['event'] == 'FSSBodySignals':
-        if 'Signals' in entry:
-            for sgnl in entry['Signals']:
-                # on détermine le type et le count
-                if 'Geological' in sgnl['Type']:
-                    this.map_geo += sgnl['Count']
-                    # this.map_others[1] -= sgnl['Count']
-                    # this.mapped[0] += sgnl['Count']
-                    update_signals_frame()
-                if 'Biological' in sgnl['Type']:
-                    this.map_bio += sgnl['Count']
-                    # this.map_others[1] -= sgnl['Count']
-                    # this.mapped[0] += sgnl['Count']
-                    update_signals_frame()
-                    
-    if entry['event'] == 'SAASignalsFound':
-        update = False
-        if 'Signals' in entry:
-            for sgnl in entry['Signals']:
-                this.map_signals += sgnl['Count']
-                update = True
-                # on détermine le type et le count
-                # if 'Guardian' in sgnl['Type']:
-                #     this.map_signals += sgnl['Count']
-                #     update_signals_frame()
-                # if 'Thargoid' in sgnl['Type']:
-                #     this.map_signals += sgnl['Count']
-                #     update_signals_frame()
-                
-        if update:
-            update_signals_frame()
         

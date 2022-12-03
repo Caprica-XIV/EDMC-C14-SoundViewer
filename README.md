@@ -10,16 +10,16 @@ The software records EVERY sound emited from the device of your choosing and dis
 
 To record sound, you need a compatible soundcard. Most commonly your computer shall have a Realtek mixer input/ouput that needs to be enable in order to record (input) the sound from your speaker (output). Windows manage sound device through different APIs, usually the best way to acquire sound output from speaker is throught the WASAPI sound driver.
 
-In some cases, your computer is not able to manage a sound card with output-to-input redirection. The best way to acheive this then is by using a virtual sound card to redirect signal. I recommand to check [vb-audio virtual cable](https://vb-audio.com/Cable/) app, you will need to assign this virtual card as default thou in order to record speaker output into EDMC.
+In some cases, your computer is not able to manage a sound card with output-to-input redirection. The best way to achieve this then is by using a virtual sound card to redirect signal. I recommand to check [vb-audio virtual cable](https://vb-audio.com/Cable/) app, you will need to assign this virtual card as default thou in order to record speaker output into EDMC.
 
 Installation
 ---
-Download from [latest release](https://github.com/Caprica-XIV/EDMC-C14-SoundViewer/releases/tag/0.2.2).
+Download from [latest release](https://github.com/Caprica-XIV/EDMC-C14-SoundViewer/releases/tag/1.0.0).
 Extract zip files into the EDMC plugin folder.
 
 Usage
 ---
-Launch EDMC, select a device (mix of sound card input with API) and press the " > " button to launch the acquisition.
+Launch EDMC, press the "Start server" button when you wish to start recording, select a device in the list (mix of sound card input with API) and press the " > " button to launch the acquisition.
 Press one of the three button below the view canvas to change the visualisation mode. Spectrogram needs extra seconds to be computed than others.
 
 Troubleshoot

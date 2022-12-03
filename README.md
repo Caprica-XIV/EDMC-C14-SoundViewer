@@ -1,6 +1,11 @@
 # EDMC-C14-SoundViewer
 EDMC plugin to display sound wave and spectrogram into EDMC window.
 
+![c14-soundviewer-cohort](https://user-images.githubusercontent.com/114026279/205447386-fa2b782d-5aae-44a3-897f-1fdfcb4c36bd.png)
+![c14-soundviewer-spectro](https://user-images.githubusercontent.com/114026279/205447387-2ca2c480-deb7-4aa9-9b77-2008b82b79b6.png)
+![c14-soundviewer-wave](https://user-images.githubusercontent.com/114026279/205447388-533ab108-2bc4-4669-bd72-5b3fcf4911e5.png)
+
+
 Requirements and functionnalities
 ---
 This plugin works with a server executable (included) compiled for Windows 64bits only.
